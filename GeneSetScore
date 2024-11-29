@@ -1,0 +1,50 @@
+setwd("D:/Rproject/scRNA/Hamster0_36_132")
+
+library(Seurat)
+library(readxl)
+library(ggplot2)
+
+MauRNA <- readRDS("E:/BioBank/scRNA/scRNA_Hamster_Virus/2.5.CCA_RPCA/DEG/DEG_Data.rds")
+Cluster <- DimPlot(MauRNA, reduction = "umap", group.by = "CellType")
+ggsave("Cluster.png", plot = Cluster, width = 10, height = 10, dpi = 800)
+
+excel <- "E:/Bibliothèque/Protocol/inflammatory genes & cytokine genes.xlsx"
+
+inflammatory <- read_excel(excel, sheet = "inflammatory genes")
+cytokines <- read_excel(excel, sheet = "cytokines genes")
+
+################################################################################
+plot_score <- function(seurat_obj, gene_list, output_file = "Inflammatory_Score.png") {
+  Inflammatory_Score <- AddModuleScore(
+    object = seurat_obj,
+    features = list(gene_list),
+    name = "Inflammatory_Score"
+  )
+  colnames(Inflammatory_Score@meta.data)[ncol(Inflammatory_Score@meta.data)] <- "Inflammatory_Score"
+  mydata <- FetchData(Inflammatory_Score, vars = c("UMAP_1", "UMAP_2", "Inflammatory_Score"))
+  Inflammatory_Score_plot <- ggplot(mydata, aes(x = UMAP_1, y = UMAP_2, colour = Inflammatory_Score)) +
+    geom_point(size = 0.05) +  
+    scale_color_gradientn(
+      values = seq(0, 2, 0.5),  
+      colours = c("#FFE8D9", "#FF6600"),  
+      limits = c(0, 3)  
+    ) +
+    theme_bw() + 
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.line = element_line(colour = "black"),
+      panel.border = element_rect(fill = NA, color = "black", size = 1, linetype = "solid")
+    )
+  ggsave(output_file, plot = Inflammatory_Score_plot, width = 10, height = 10, dpi = 800)
+  return(Inflammatory_Score_plot)
+}
+################################################################################
+
+plot_score(seurat_obj = MauRNA, gene_list = inflammatory, output_file = "InflammatoryScore.png")
+
+for (colname in colnames(cytokines)) {
+  gene_list <- cytokines[[colname]]
+  output_file <- paste0(colname, ".png")
+  plot_inflammatory_score(seurat_obj = MauRNA, gene_list = gene_list, output_file = output_file)
+}
